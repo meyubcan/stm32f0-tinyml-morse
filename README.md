@@ -1,87 +1,91 @@
-# STM32F091 üzerinde sinir ağıyla mors çözücü (TinyML)
+# TinyML Morse decoder on a Cortex-M0
 
-> [TECH-OHM](https://tech-ohm.com) açık kaynak projesi
+STM32F091 · X-CUBE-AI · 1D CNN in 3.4 KB of weights
 
-Tek bir butona basış biçimini küçük bir sinir ağıyla sınıflandırıp mors alfabesinden metne çeviren uygulama. Ağ, 48 MHz'lik bir Cortex-M0 üzerinde, 3.4 KB ağırlık ve 1 KB RAM ile çalışıyor.
+![MCU](https://img.shields.io/badge/MCU-STM32F091RC-03234B?logo=stmicroelectronics&logoColor=white) ![IDE](https://img.shields.io/badge/IDE-STM32CubeIDE-2ea44f) ![License](https://img.shields.io/badge/license-MIT-blue) [![TECH-OHM](https://img.shields.io/badge/by-TECH--OHM-FFD400)](https://tech-ohm.com)
 
-Mors çözmek için sinir ağı şart değil, basış süresini ölçmek de yeter. Burada amaç, TensorFlow'da eğitilmiş bir modeli X-CUBE-AI ile en küçük STM32'lerden birine sığdırıp uçtan uca çalıştırmaktı.
+**English** | [Türkçe](README.tr.md) · An open-source project by [TECH-OHM](https://tech-ohm.com)
 
-## Blok diyagram
+An application that classifies how a single button is pressed with a small neural network and turns the result into text through Morse code. The network runs on a 48 MHz Cortex-M0 with 3.4 KB of weights and 1 KB of RAM.
+
+You do not need a neural network to decode Morse. Measuring press duration is enough. The point here was to take a model trained in TensorFlow, fit it into one of the smallest STM32s with X-CUBE-AI, and run it end to end.
+
+## Block diagram
 
 ```mermaid
 flowchart LR
-    BTN[Buton, PC13] --> SMP[40 Hz örnekleme, 1 saniyelik pencere]
-    TIM[TIM3, 1 ms kesme] --> SMP
-    SMP -- "40 örnek, 0 ya da 1" --> NN[1 boyutlu evrişimli ağ]
-    NN -- "4 sınıf" --> DEC[Mors çözücü]
-    DEC --> MSG[Metin tamponu]
+    BTN[Button, PC13] --> SMP[40 Hz sampling, 1 second window]
+    TIM[TIM3, 1 ms interrupt] --> SMP
+    SMP -- "40 samples, 0 or 1" --> NN[1D convolutional network]
+    NN -- "4 classes" --> DEC[Morse decoder]
+    DEC --> MSG[Text buffer]
 ```
 
-## Nasıl çalışıyor
+## How it works
 
-TIM3 milisaniyede bir kesme üretiyor. Her 25 milisaniyede butonun durumu okunup bir diziye yazılıyor. 40 örnek dolunca, yani bir saniyede, pencere sinir ağına veriliyor. Ağ pencereyi dört sınıftan birine atıyor:
+TIM3 raises an interrupt every millisecond. Every 25 ms the button state is read and written to an array. After 40 samples, which is one second, the window goes to the network. The network puts the window into one of four classes:
 
-| Sınıf | Basış | Yapılan iş |
+| Class | Press | Action |
 |---|---|---|
-| 0 | kısa basış | nokta eklenir |
-| 2 | uzun basış | çizgi eklenir |
-| 3 | hiç basılmadı | harf biter, biriken nokta ve çizgiler tabloda aranır |
-| 1 | çift tık | kelime biter, harf yazılır ve boşluk eklenir |
+| 0 | short press | a dot is added |
+| 2 | long press | a dash is added |
+| 3 | no press | the letter ends, collected dots and dashes are looked up |
+| 1 | double click | the word ends, the letter is written and a space is added |
 
-Örneğin `A` yazmak için: bir saniye içinde kısa bas, sonraki saniyede uzun bas, sonraki saniyede bekle.
+To write `A`: press short within one second, press long in the next second, wait in the one after.
 
-Uygulama 30 pencere (30 saniye) topladıktan sonra duruyor. Çözülen metin `message` dizisinde, debug sırasında Live Expressions ya da Memory penceresinden okunuyor.
+The application stops after 30 windows (30 seconds). The decoded text is in the `message` array and can be read in the Live Expressions or Memory view while debugging.
 
 ## Model
 
 | | |
 |---|---|
-| Giriş | 40 örnek, tek kanal |
-| Katmanlar | Conv1D (4 filtre), MaxPool, Conv1D (8 filtre), MaxPool, iki tam bağlı katman (8 ve 4 nöron) |
-| Çıkış | 4 sınıf |
-| Parametre | 876 |
-| Ağırlıklar (Flash) | 3.42 KB |
-| Aktivasyonlar (RAM) | 1.02 KB |
-| İşlem yükü | 5404 MACC |
+| Input | 40 samples, one channel |
+| Layers | Conv1D (4 filters), MaxPool, Conv1D (8 filters), MaxPool, two dense layers (8 and 4 units) |
+| Output | 4 classes |
+| Parameters | 876 |
+| Weights (Flash) | 3.42 KB |
+| Activations (RAM) | 1.02 KB |
+| Complexity | 5404 MACC |
 
-Model Keras'ta eğitilip `.tflite` olarak dışa aktarıldı, ardından STM32CubeMX içindeki X-CUBE-AI 10.2 ile C koduna çevrildi. Sıkıştırma kullanılmadı, ağırlıklar 32 bit kayan nokta.
+The model was trained in Keras, exported as `.tflite`, and converted to C with X-CUBE-AI 10.2 inside STM32CubeMX. No compression, 32-bit float weights.
 
-Derlenmiş programın tamamı yaklaşık 32 KB Flash ve 9 KB RAM tutuyor.
+The complete binary takes about 32 KB of Flash and 9 KB of RAM.
 
-## Klasörler
+## Folders
 
-| Klasör | İçerik |
+| Folder | Content |
 |---|---|
-| `model/` | eğitilmiş model, `model_40hz_1sec.tflite` |
-| `X-CUBE-AI/App/` | modelden üretilen C dosyaları ve dönüşüm raporu |
-| `Middlewares/ST/AI/` | ST'nin sinir ağı çalışma zamanı kütüphanesi |
-| `Core/Src/main.c` | örnekleme, ağın çağrılması ve mors çözme |
+| `model/` | the trained model, `model_40hz_1sec.tflite` |
+| `X-CUBE-AI/App/` | C files generated from the model and the conversion report |
+| `Middlewares/ST/AI/` | ST's neural network runtime library |
+| `Core/Src/main.c` | sampling, inference and Morse decoding |
 
-Eğitim betiği ve veri seti bu depoda yok.
+The training script and dataset are not in this repository.
 
-## Pinler
+## Pins
 
-| Pin | Görev |
+| Pin | Function |
 |---|---|
-| PC13 | buton, basılıyken 0 |
+| PC13 | button, low when pressed |
 | PA5 | LED |
 
-İkisi de NUCLEO-F091RC kartının üzerinde, dışarıdan bağlantı gerekmiyor.
+Both are on the NUCLEO-F091RC board, so no external wiring is needed.
 
-## Derleme
+## Build
 
-STM32CubeIDE'de `File > Import > Existing Projects into Workspace` ile klasörü seç. Modeli değiştirmek istersen `.ioc` dosyasını açıp X-CUBE-AI sekmesinden yeni `.tflite` dosyasını göster ve kodu yeniden üret.
+In STM32CubeIDE use `File > Import > Existing Projects into Workspace` and select this folder. To change the model, open the `.ioc` file, point the X-CUBE-AI tab at the new `.tflite` file and regenerate the code.
 
-## Lisans
+## License
 
-`Core/Src/main.c` içindeki uygulama kodu MIT lisanslı. X-CUBE-AI ile üretilen dosyalar ve çalışma zamanı kütüphanesi ST'nin lisansıyla gelir, metni `LICENSE_X-CUBE-AI.txt` içinde. `Drivers` klasöründeki HAL ve CMSIS dosyaları da kendi lisanslarını taşır.
+The application code in `Core/Src/main.c` is MIT licensed. The files generated by X-CUBE-AI and the runtime library come under ST's license, see `LICENSE_X-CUBE-AI.txt`. The HAL and CMSIS files under `Drivers` keep their own licenses too.
 
-## Yazar
+## Author
 
-Gömülü Sistem Mühendisi M. Eyüb Can, [TECH-OHM](https://tech-ohm.com) kurucusu
+M. Eyüb Can, embedded systems engineer and founder of [TECH-OHM](https://tech-ohm.com)
 
-## TECH-OHM
+## About TECH-OHM
 
-[TECH-OHM](https://tech-ohm.com) elektronik kart ve gömülü yazılım tasarlayan bir mühendislik firması. Fikirden seri üretime kadar tasarım işi alıyor, TECH-OHM Akademi'de 12 aylık gömülü sistem eğitimi ve şirketlere özel danışmanlık veriyor.
+[TECH-OHM](https://tech-ohm.com) designs electronic boards and embedded software, from the first schematic to series production. We also run a 12-month embedded systems training program and consult for engineering teams.
 
-Web: [tech-ohm.com](https://tech-ohm.com) · E-posta: info@tech-ohm.com
+Web: [tech-ohm.com](https://tech-ohm.com) · Email: info@tech-ohm.com
