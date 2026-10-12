@@ -1,5 +1,7 @@
 # STM32F091 üzerinde sinir ağıyla mors çözücü (TinyML)
 
+> [TECH-OHM](https://tech-ohm.com) açık kaynak projesi
+
 Tek bir butona basış biçimini küçük bir sinir ağıyla sınıflandırıp mors alfabesinden metne çeviren uygulama. Ağ, 48 MHz'lik bir Cortex-M0 üzerinde, 3.4 KB ağırlık ve 1 KB RAM ile çalışıyor.
 
 Mors çözmek için sinir ağı şart değil, basış süresini ölçmek de yeter. Burada amaç, TensorFlow'da eğitilmiş bir modeli X-CUBE-AI ile en küçük STM32'lerden birine sığdırıp uçtan uca çalıştırmaktı.
@@ -76,4 +78,10 @@ STM32CubeIDE'de `File > Import > Existing Projects into Workspace` ile klasörü
 
 ## Yazar
 
-Gömülü Sistem Mühendisi M. Eyüb Can, [TECH-OHM](https://tech-ohm.com)
+Gömülü Sistem Mühendisi M. Eyüb Can, [TECH-OHM](https://tech-ohm.com) kurucusu
+
+## TECH-OHM
+
+[TECH-OHM](https://tech-ohm.com) elektronik kart ve gömülü yazılım tasarlayan bir mühendislik firması. Fikirden seri üretime kadar tasarım işi alıyor, TECH-OHM Akademi'de 12 aylık gömülü sistem eğitimi ve şirketlere özel danışmanlık veriyor.
+
+Web: [tech-ohm.com](https://tech-ohm.com) · E-posta: info@tech-ohm.com
