@@ -42,7 +42,7 @@ float ai_out[4];
 
 
 static ai_handle network = AI_HANDLE_NULL;
-/* Aktivasyon tamponu, boyutu X-CUBE-AI'nin urettigi makrodan gelir */
+/* Activation buffer. Its size comes from the macro X-CUBE-AI generates. */
 static uint8_t activations[AI_MODEL_40HZ_1SEC_DATA_ACTIVATIONS_SIZE] __attribute__((aligned(32)));
 
 /* Morse buffers */
